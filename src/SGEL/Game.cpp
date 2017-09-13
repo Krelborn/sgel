@@ -9,7 +9,7 @@
 #include <memory>
 #include <stdexcept>
 
-#include <rapidjson/Document.h>
+#include <rapidjson/document.h>
 #include <rapidjson/filereadstream.h>
 
 #include "Paths.hpp"
@@ -29,9 +29,6 @@ using sf::Clock;
 using sf::RenderTarget;
 using sf::Time;
 using sf::Vector2i;
-
-using KeyEvent = sf::Event::KeyEvent;
-using TextEvent = sf::Event::TextEvent;
 
 namespace
 {
@@ -69,48 +66,6 @@ namespace
         fclose(file);
     
         return json;
-    }
-    
-    /**
-     *  Generic helper for binding event handlers to binding tokens
-     */
-    template <class HandlerT>
-    shared_ptr<HandlerT> AddEventHandlerToContainer(const HandlerT& handler, vector<weak_ptr<HandlerT>> &inOutContainer)
-    {
-        shared_ptr<HandlerT> binding(new HandlerT(std::move(handler)));
-        inOutContainer.push_back(binding);
-        return binding;
-    }
-    
-    /**
-     *  Invoke handlers for events without arguments
-     */
-    void DispatchEvent(const vector<weak_ptr<std::function<void(void)>>>& container)
-    {        
-        for (auto currentBinding : container)
-        {
-            shared_ptr<std::function<void(void)>> lockedBinding = currentBinding.lock();
-            if (lockedBinding)
-            {
-                (*lockedBinding)();
-            }
-        }
-    }
-
-    /**
-     *  Invoke handlers for event with a single argument
-     */
-    template <typename EventT>
-    void DispatchEvent(EventT event, const vector<weak_ptr<std::function<void(EventT)>>>& container)
-    {
-        for (auto currentBinding : container)
-        {
-            shared_ptr<std::function<void(EventT)>> lockedBinding = currentBinding.lock();
-            if (lockedBinding)
-            {
-                (*lockedBinding)(event);
-            }
-        }
     }
 }
 
@@ -218,6 +173,8 @@ void Game::Initialize()
 
     // Create the main window
     window.create(sf::VideoMode(windowSize.x,windowSize.y), GetName(), sf::Style::Titlebar | sf::Style::Close);
+
+    GetQuitEvent().Connect(this, &Game::Quit);
 }
 
 /**
@@ -230,30 +187,7 @@ void Game::ProcessAllEvents()
     Event event;
     while (window.pollEvent(event))
     {
-        DispatchEvent<const Event&>(event, genericEventHandlers);
-        
-        switch (event.type)
-        {
-            case Event::Closed:
-                // Close window: exit
-                Quit();
-                break;
-                
-            case Event::KeyPressed:                
-                DispatchEvent<const KeyEvent&>(event.key, keyDownEventHandlers);
-                break;
-                
-            case Event::KeyReleased:
-                DispatchEvent<const KeyEvent&>(event.key, keyUpEventHandlers);
-                break;
-                
-            case Event::TextEntered:
-                DispatchEvent<const TextEvent&>(event.text, textEventHandlers);
-                break;
-                
-            default:
-                break;
-        }
+        BroadcastEvent(event);
     }
 }
 
@@ -270,7 +204,7 @@ void Game::Quit()
  */
 void Game::Update()
 {
-    DispatchEvent(updateEventHandlers);
+    GetUpdateEvent().Emit();
 }
 
 /**
@@ -282,93 +216,8 @@ void Game::Draw()
     window.clear();
     
     // Actually call out to the draw handlers
-    DispatchEvent<RenderTarget&>(window, drawEventHandlers);
+    GetDrawEvent().Emit(window);
     
     // Update the window
     window.display();
 }
-
-#pragma mark - Event Management
-
-/**
- *  Bind a function that will be called for every update phase
- *
- *  @param  handler Function for processing updates
- *
- *  @return A binding token used by the caller to keep the handler alive
- */
-UpdateEventHandlerBinding Game::AddUpdateEventHandler(const UpdateEventHandler& handler)
-{
-    return AddEventHandlerToContainer(handler, updateEventHandlers);
-}
-
-/**
- *  Bind a function that will be called for every update phase
- *
- *  @param  handler Function for processing updates
- *
- *  @return A binding token used by the caller to keep the handler alive
- */
-DrawEventHandlerBinding Game::AddDrawEventHandler(const DrawEventHandler& handler)
-{
-    return AddEventHandlerToContainer(handler, drawEventHandlers);
-}
-
-/**
- *  Bind a function that will be called for every event
- *
- *  @param  handler Function object taking any Event as an argument
- *
- *  @return A binding token used by the caller to keep the handler alive
- */
-GenericEventHandlerBinding Game::AddGenericEventHandler(const GenericEventHandler& handler)
-{
-    return AddEventHandlerToContainer(handler, genericEventHandlers);
-}
-
-/**
- *  Bind a function to key down event
- *
- *  The function will be called for every key down event. The caller must hold onto the returned
- *  binding object otherwise the handler will be released.
- *
- *  @param  handler Function object taking a KeyEvent as an argument
- *
- *  @return A binding token used by the caller to keep the handler alive
- */
-KeyEventHandlerBinding Game::AddKeyDownEventHandler(const KeyEventHandler& handler)
-{
-    return AddEventHandlerToContainer(handler, keyDownEventHandlers);
-}
-
-/**
- *  Bind a function to key up event
- *
- *  The function will be called for every key up event. The caller must hold onto the returned
- *  binding object otherwise the handler will be released.
- *
- *  @param  handler Function object taking a KeyEvent as an argument
- *
- *  @return A binding token used by the caller to keep the handler alive
- */
-KeyEventHandlerBinding Game::AddKeyUpEventHandler(const KeyEventHandler& handler)
-{
-    return AddEventHandlerToContainer(handler, keyUpEventHandlers);
-}
-
-/**
- *  Bind a function to text input event
- *
- *  The function will be called for every text input event. The caller must hold onto the returned
- *  binding object otherwise the handler will be released.
- *
- *  @param  handler Function object taking a TextEvent as an argument
- *
- *  @return A binding token used by the caller to keep the handler alive
- */
-TextEventHandlerBinding Game::AddTextEventHandler(const TextEventHandler& handler)
-{
-    return AddEventHandlerToContainer(handler, textEventHandlers);
-}
-
-
