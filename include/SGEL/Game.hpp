@@ -27,6 +27,9 @@ namespace sgel
         
         void            SetName(const std::string& inName);
         std::string     GetName() const;
+
+        void            SetEditorVisible(bool visible);
+        bool            IsEditorVisible() const;
         
         sf::Time        GetFrameDelta() const;
         
@@ -48,5 +51,7 @@ namespace sgel
         std::string         name;
         sf::RenderWindow    window;
         sf::Time            frameDelta;
+
+        bool                editorVisible;
     };
 }

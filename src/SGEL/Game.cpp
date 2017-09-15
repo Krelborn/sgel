@@ -50,7 +50,7 @@ namespace
      *
      *  @return A JSON document
      */
-    shared_ptr<Document> LoadJSON(const string& name)
+    Document LoadJSON(const string& name)
     {
         string path = Paths::GetResourcePath() + name + ".json";
         
@@ -63,8 +63,8 @@ namespace
         char readBuffer[65536];
         FileReadStream is(file, readBuffer, sizeof(readBuffer));
         
-        shared_ptr<Document> json = std::make_shared<Document>();
-        json->ParseStream(is);
+        Document json;
+        json.ParseStream(is);
         
         fclose(file);
     
@@ -75,7 +75,8 @@ namespace
 /**
  *  Create the game instance
  */
-Game::Game()
+Game::Game() :
+    editorVisible(false)
 {
     if (sharedGame == nullptr)
     {
@@ -123,6 +124,24 @@ string Game::GetName() const
 }
 
 /**
+ *  Show/hide the editor interface
+ *
+ *  @param  visible If true the immediate mode editor GUI will be displayed
+ */
+void Game::SetEditorVisible(bool visible)
+{
+    editorVisible = visible;
+}
+
+/**
+ *  @return true if the immediate mode editor is visible in the game window
+ */
+bool Game::IsEditorVisible() const
+{
+    return editorVisible;
+}
+
+/**
  *  @return The time since the last frame started
  */
 Time Game::GetFrameDelta() const
@@ -162,22 +181,30 @@ void Game::Run()
  */
 void Game::Initialize()
 {
-    shared_ptr<Document> config = LoadJSON("config");
+    Document config(std::move(LoadJSON("config")));
     
     Vector2i windowSize(640, 480);
-    if (config->HasMember("window"))
+    if (config.HasMember("window"))
     {
-        windowSize.x = (*config)["window"]["size"]["width"].GetInt();
-        windowSize.y = (*config)["window"]["size"]["height"].GetInt();
+        windowSize.x = config["window"]["size"]["width"].GetInt();
+        windowSize.y = config["window"]["size"]["height"].GetInt();
     }
     
-    if (config->HasMember("name"))
+    if (config.HasMember("name"))
     {
-        SetName((*config)["name"].GetString());
+        SetName(config["name"].GetString());
     }
 
     // Create the main window
     window.create(sf::VideoMode(windowSize.x,windowSize.y), GetName(), sf::Style::Titlebar | sf::Style::Close);
+
+    if (config.HasMember("editor"))
+    {
+        if (config["editor"].HasMember("visible"))
+        {
+            editorVisible = config["editor"]["visible"].GetBool();
+        }
+    }
 
     // Setup the immediate mode GUI
     ImGui::SFML::Init(window);
@@ -198,8 +225,12 @@ void Game::ProcessAllEvents()
     while (window.pollEvent(event))
     {
         BroadcastEvent(event);
-        
-        ImGui::SFML::ProcessEvent(event);
+
+        // Give events to the editor if it's visible
+        if (IsEditorVisible())
+        {
+            ImGui::SFML::ProcessEvent(event);
+        }
     }
 }
 
@@ -216,7 +247,12 @@ void Game::Quit()
  */
 void Game::Update()
 {
-    ImGui::SFML::Update(window, GetFrameDelta());
+    // If the editor is visible, give it an update. GUI shouldn't be drawn if this isn't being
+    // called!
+    if (IsEditorVisible())
+    {
+        ImGui::SFML::Update(window, GetFrameDelta());
+    }
 
     GetUpdateEvent().Emit();
 }
@@ -231,9 +267,13 @@ void Game::Draw()
     
     // Actually call out to the draw handlers
     GetDrawEvent().Emit(window);
-    
-    ImGui::SFML::Render(window);
-    
+
+    // Editor GUI is drawn on top of the game elements
+    if (IsEditorVisible())
+    {
+        ImGui::SFML::Render(window);
+    }
+
     // Update the window
     window.display();
 }
