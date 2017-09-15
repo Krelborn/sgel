@@ -4,7 +4,7 @@
 //  SGEL - Simple Game Engine Library for SFML
 //
 
-#include "Game.hpp"
+#include "SGEL/Game.hpp"
 
 #include <memory>
 #include <stdexcept>
@@ -12,7 +12,10 @@
 #include <rapidjson/document.h>
 #include <rapidjson/filereadstream.h>
 
-#include "Paths.hpp"
+#include "imgui.h"
+#include "imgui-sfml.h"
+
+#include "SGEL/Paths.hpp"
 
 using namespace sgel;
 
@@ -85,6 +88,8 @@ Game::Game()
  */
 Game::~Game()
 {
+    ImGui::SFML::Shutdown();
+    
     if (sharedGame == this)
     {
         sharedGame = nullptr;
@@ -174,6 +179,11 @@ void Game::Initialize()
     // Create the main window
     window.create(sf::VideoMode(windowSize.x,windowSize.y), GetName(), sf::Style::Titlebar | sf::Style::Close);
 
+    // Setup the immediate mode GUI
+    ImGui::SFML::Init(window);
+    auto &imguiIO = ImGui::GetIO();
+    imguiIO.FontGlobalScale = 2.0;
+    
     GetQuitEvent().Connect(this, &Game::Quit);
 }
 
@@ -188,6 +198,8 @@ void Game::ProcessAllEvents()
     while (window.pollEvent(event))
     {
         BroadcastEvent(event);
+        
+        ImGui::SFML::ProcessEvent(event);
     }
 }
 
@@ -204,6 +216,8 @@ void Game::Quit()
  */
 void Game::Update()
 {
+    ImGui::SFML::Update(window, GetFrameDelta());
+
     GetUpdateEvent().Emit();
 }
 
@@ -217,6 +231,8 @@ void Game::Draw()
     
     // Actually call out to the draw handlers
     GetDrawEvent().Emit(window);
+    
+    ImGui::SFML::Render(window);
     
     // Update the window
     window.display();
