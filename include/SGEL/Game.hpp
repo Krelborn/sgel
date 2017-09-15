@@ -23,28 +23,34 @@ namespace sgel
         Game();
         ~Game() override;
         
-        static Game&    GetGame();
+        static Game&            GetGame();
         
-        void            SetName(const std::string& inName);
-        std::string     GetName() const;
+        void                    SetName(const std::string& inName);
+        std::string             GetName() const;
 
-        void            SetEditorVisible(bool visible);
-        bool            IsEditorVisible() const;
+        void                    SetFullScreen(bool inFullScreen);
+        bool                    IsFullScreen() const;
+
+        void                    SetVideoMode(const sf::VideoMode& inVideoMode);
+        const sf::VideoMode&    GetVideoMode() const;
+
+        void                    SetEditorVisible(bool visible);
+        bool                    IsEditorVisible() const;
         
-        sf::Time        GetFrameDelta() const;
+        sf::Time                GetFrameDelta() const;
         
-        void            Run();
+        void                    Run();
         
-        void            Quit();
+        void                    Quit();
 
     private:
         
-        void            Initialize();
+        void                    Initialize();
         
-        void            ProcessAllEvents();
+        void                    ProcessAllEvents();
         
-        void            Update();
-        void            Draw();
+        void                    Update();
+        void                    Draw();
         
     private:
         
@@ -53,5 +59,8 @@ namespace sgel
         sf::Time            frameDelta;
 
         bool                editorVisible;
+
+        bool                fullScreen;
+        sf::VideoMode       videoMode;
     };
 }

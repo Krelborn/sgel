@@ -76,7 +76,8 @@ namespace
  *  Create the game instance
  */
 Game::Game() :
-    editorVisible(false)
+    editorVisible(false),
+    fullScreen(false)
 {
     if (sharedGame == nullptr)
     {
@@ -124,6 +125,43 @@ string Game::GetName() const
 }
 
 /**
+ *  Toggle the game between full screen and windowed modes
+ *
+ *  @param  inFullScreen Game will be in a full screen window if true
+ */
+void Game::SetFullScreen(bool inFullScreen)
+{
+    fullScreen = inFullScreen;
+}
+
+/**
+ *  @return true if the game is running in full screen mode
+ */
+bool Game::IsFullScreen() const
+{
+    return fullScreen;
+}
+
+/**
+ *  Set the video mode used to display the game
+ *
+ *  @param  inVideoMode The new video mode (Must be a valid mode)
+ */
+void Game::SetVideoMode(const sf::VideoMode& inVideoMode)
+{
+    videoMode = inVideoMode;
+}
+
+/**
+ *  @return The current video mode for the game
+ */
+const sf::VideoMode& Game::GetVideoMode() const
+{
+    return videoMode;
+}
+
+
+/**
  *  Show/hide the editor interface
  *
  *  @param  visible If true the immediate mode editor GUI will be displayed
@@ -161,10 +199,12 @@ void Game::Run()
     Clock frameTimer;
     frameDelta = Time::Zero;
 
-    
     // Start the game loop
     while (window.isOpen())
     {
+        bool savedFullScreen = IsFullScreen();
+        sf::VideoMode savedVideoMode = GetVideoMode();
+
         frameDelta = frameTimer.restart();
         
         ProcessAllEvents();
@@ -172,7 +212,17 @@ void Game::Run()
         Update();
         
         Draw();
-        
+
+        if ((savedFullScreen != IsFullScreen()) || (savedVideoMode != GetVideoMode()))
+        {
+            uint32_t style = sf::Style::Titlebar | sf::Style::Close;
+            if (IsFullScreen())
+            {
+                style = sf::Style::Fullscreen;
+            }
+
+            window.create(videoMode, GetName(), style);
+        }
     }
 }
 
@@ -186,8 +236,8 @@ void Game::Initialize()
     Vector2i windowSize(640, 480);
     if (config.HasMember("window"))
     {
-        windowSize.x = config["window"]["size"]["width"].GetInt();
-        windowSize.y = config["window"]["size"]["height"].GetInt();
+        videoMode.width = config["window"]["size"]["width"].GetInt();
+        videoMode.height = config["window"]["size"]["height"].GetInt();
     }
     
     if (config.HasMember("name"))
@@ -196,7 +246,7 @@ void Game::Initialize()
     }
 
     // Create the main window
-    window.create(sf::VideoMode(windowSize.x,windowSize.y), GetName(), sf::Style::Titlebar | sf::Style::Close);
+    window.create(videoMode, GetName(), sf::Style::Titlebar | sf::Style::Close);
 
     if (config.HasMember("editor"))
     {
