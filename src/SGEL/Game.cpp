@@ -13,7 +13,7 @@
 #include <rapidjson/filereadstream.h>
 
 #include "imgui.h"
-#include "imgui-sfml.h"
+#include "imgui-SFML.h"
 
 #include "SGEL/Paths.hpp"
 
